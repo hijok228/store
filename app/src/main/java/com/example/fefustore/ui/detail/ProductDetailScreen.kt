@@ -31,7 +31,9 @@ fun ProductDetailScreen(
     val product = ProductRepository.getProductById(productId)
 
     if (product == null) {
-        Scaffold { innerPadding ->
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background
+        ) { innerPadding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -40,7 +42,11 @@ fun ProductDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 TextButton(onClick = onBackClick) {
-                    Text("Назад")
+                    Text(
+                        text = "Назад",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
                 Text(
@@ -53,12 +59,17 @@ fun ProductDetailScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TextButton(
                 onClick = onBackClick,
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             ) {
-                Text("Назад")
+                Text(
+                    text = "Назад",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     ) { innerPadding ->
@@ -89,7 +100,8 @@ fun ProductDetailScreen(
             Text(
                 text = product.price,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
 
             Text(
