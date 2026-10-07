@@ -1,54 +1,89 @@
 package com.example.fefustore.data
 
-import com.example.fefustore.model.Product
+import com.example.fefustore.model.CatalogData
+import android.content.Context
+import androidx.room.withTransaction
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import java.io.IOException
+import retrofit2.HttpException
+class ProductRepository(
+    context: Context
+) {
 
-object ProductRepository {
-    val products = listOf(
-        Product(
-            id = 1,
-            title = "Рюкзак Fjallraven",
-            price = "6 600 ₽",
-            description = "Удобный городской рюкзак для учёбы, прогулок и поездок.",
-            imageUrl = "https://kanken-shop.net/wp-content/uploads/2019/11/kanken-classic-black-picture.jpg"
-        ),
-        Product(
-            id = 2,
-            title = "Мужская футболка",
-            price = "580 ₽",
-            description = "Базовая футболка из хлопка на каждый день.",
-            imageUrl = "https://ditex.su/init/static/products/02/10/img500.jpg"
-        ),
-        Product(
-            id = 3,
-            title = "Мужская куртка",
-            price = "6 490 ₽",
-            description = "Лёгкая и удобная куртка для прохладной погоды.",
-            imageUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwZFfwbjMYoQaI6Fl0oxnn3Xk_sqcfvOLuLA&s"
-        ),
-        Product(
-            id = 4,
-            title = "Женская куртка",
-            price = "18 990 ₽",
-            description = "Стильная женская куртка с современным дизайном.",
-            imageUrl = "https://mongolshop.ru/upload/iblock/5f1/7m8g7at1700n7hyp3b69rz0sn030bdba/20-09-2476019.jpg"
-        ),
-        Product(
-            id = 5,
-            title = "Браслет",
-            price = "12 990 ₽",
-            description = "Элегантный аксессуар, который подойдёт на каждый день.",
-            imageUrl = "https://optim.tildacdn.com/stor6162-3761-4136-b334-393361313762/-/format/webp/47555204.jpg.webp"
-        ),
-        Product(
-            id = 6,
-            title = "Игровой SSD",
-            price = "19 900 ₽",
-            description = "Накопитель для быстрой загрузки игр и программ.",
-            imageUrl = "https://c.dns-shop.ru/thumb/st4/fit/500/500/b60c1ec8a195fc6bd4367a71e2f72533/c0e0fdbb70b14fa69e223b44b1ea251d48ea8fde682cf2a535075882a6c7a1aa.jpg.webp"
-        )
-    )
+    private val database = AppDatabase.getInstance(context)
+    private val productDao = database.productDao()
+    private val categoryDao = database.categoryDao()
+    private val api = RetrofitClient.api
 
-    fun getProductById(id: Int): Product? {
-        return products.find { it.id == id }
+    companion object {
+        private const val AUTHORIZATION =
+            "Bearer Cmt7wdwFgDIi1_SRX8hlJIExs0jJKPr4axflLpExAxM"
+    }
+
+    /**
+     * Наблюдает за данными из локальной базы Room.
+     *
+     * Когда API обновит базу, Flow автоматически передаст
+     * новые данные в ViewModel.
+     */
+    fun observeCatalog(): Flow<CatalogData> {
+        return combine(
+            productDao.getAllProducts(),
+            categoryDao.getAllCategories()
+        ) { products, categories ->
+
+            CatalogData(
+                categories = categories.map { it.toCategory() },
+                items = products.map { it.toProduct() }
+            )
+        }
+    }
+
+    /**
+     * Проверяет, есть ли данные в локальном кэше.
+     */
+    suspend fun hasCache(): Boolean {
+        val products = productDao.getAllProducts().first()
+        val categories = categoryDao.getAllCategories().first()
+
+        return products.isNotEmpty() || categories.isNotEmpty()
+    }
+
+    /**
+     * Загружает каталог из API и сохраняет его в Room.
+     */
+    suspend fun refreshCatalog(): Result<Unit> {
+        return try {
+            val catalog = api.getCatalog(AUTHORIZATION)
+
+            database.withTransaction {
+                productDao.clearProducts()
+                categoryDao.clearCategories()
+
+                productDao.insertProducts(
+                    catalog.items.map { it.toEntity() }
+                )
+
+                categoryDao.insertCategories(
+                    catalog.categories.map { it.toEntity() }
+                )
+            }
+
+            Result.success(Unit)
+
+        } catch (e: HttpException) {
+            println("API ERROR: HTTP ${e.code()} ${e.message()}")
+            Result.failure(e)
+
+        } catch (e: IOException) {
+            println("API ERROR: Network error ${e.message}")
+            Result.failure(e)
+
+        } catch (e: Exception) {
+            println("API ERROR: ${e.message}")
+            Result.failure(e)
+        }
     }
 }
