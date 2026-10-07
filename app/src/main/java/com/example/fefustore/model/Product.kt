@@ -1,6 +1,7 @@
 package com.example.fefustore.model
 
 import com.google.gson.annotations.SerializedName
+import java.util.Locale
 
 data class Product(
     val id: String,
@@ -32,7 +33,9 @@ data class Product(
     val countryOfOrigin: String
 ) {
     val price: String
-        get() = "%,d ₽".format(priceInKopecks / 100).replace(',', ' ')
+        get() = "%,d ₽"
+            .format(Locale.US, priceInKopecks / 100)
+            .replace(",", " ")
 }
 
 data class ProductSize(
